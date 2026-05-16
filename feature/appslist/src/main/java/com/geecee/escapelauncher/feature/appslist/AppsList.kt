@@ -1,5 +1,6 @@
 package com.geecee.escapelauncher.feature.appslist
 
+import androidx.activity.compose.BackHandler
 import androidx.activity.ComponentActivity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -29,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -92,6 +94,11 @@ fun AppsList(
     val bottomSheetActions by appsListViewModel.bottomSheetActions.collectAsState()
     val shortcutActions by appsListViewModel.shortcutActions.collectAsState()
 
+    // Collapse search on back press
+    BackHandler(enabled = searchExpanded) {
+        appsListViewModel.onSearchExpandedChanged(false)
+    }
+
     // Standard app interaction logic shared across slots
     val handleAppClick: (InstalledApp) -> Unit = { app ->
         onAppOpened(app)
@@ -145,38 +152,7 @@ fun AppsList(
                 AppsListHeader(stringResource(R.string.all_apps))
             }
 
-            // Search box
-            item {
-                if (showSearchBox && !bottomSearchBox) {
-                    Spacer(modifier = Modifier.height(15.dp))
-
-                    AnimatedPillSearchBar(
-                        closedText = stringResource(R.string.search),
-                        searchText = searchText,
-                        isExpanded = searchExpanded,
-                        autoFocus = autoOpenSearch,
-                        onExpandedChange = {
-                            appsListViewModel.onSearchExpandedChanged(it)
-                            doHapticFeedBack(haptics, hapticFeedbackEnabled)
-                        },
-                        onSearchTextChanged = { query ->
-                            appsListViewModel.onSearchTextChanged(query)
-                            if (autoOpenAppInSearch && query.length >= 2 && apps.size == 1) {
-                                handleAppClick(apps.first())
-                            }
-                        },
-                        onSearchDone = { _, keboardController ->
-                            if (apps.isNotEmpty()) {
-                                keboardController?.hide()
-                                handleAppClick(apps.first())
-                            } else {
-                                doHapticFeedBack(haptics, hapticFeedbackEnabled)
-                            }
-                        })
-
-                    Spacer(modifier = Modifier.height(15.dp))
-                }
-            }
+            // Search box removed from here to move it down
 
             // Apps
             items(apps, key = { app -> app.packageName }) { app ->
@@ -207,7 +183,22 @@ fun AppsList(
             }
         }
 
-        ListGradient() // Adds a gradient to the bottom of the screen just to make it a bit nicer
+        // Adds a substantial gradient/blur-like effect to the bottom to obscure apps passing under the search bar
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(140.dp)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            BackgroundColor.copy(alpha = 0f),
+                            BackgroundColor.copy(alpha = 0.8f),
+                            BackgroundColor
+                        )
+                    )
+                )
+        )
 
         // Floating content (Work Apps FAB, etc)
         floatingContent { appsListViewModel.setShowWorkApps(true) }
@@ -229,6 +220,7 @@ fun AppsList(
             ) {
                 workAppsContent(
                     { app -> // onAppClick
+                        appsListViewModel.clearSearch()
                         openApp(context = context, app = app)
                         onGoHomeRequest()
                     },
@@ -247,7 +239,7 @@ fun AppsList(
                 .fillMaxWidth(),
             horizontalAlignment = appsListAlignment
         ) {
-            if (showSearchBox && bottomSearchBox) {
+            if (showSearchBox) {
                 Spacer(modifier = Modifier.height(15.dp))
 
                 AnimatedPillSearchBar(

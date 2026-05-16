@@ -73,6 +73,16 @@ class AppsListViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Resets the search state completely
+     */
+    fun clearSearch() {
+        _searchExpanded.value = false
+        _searchText.value = ""
+    }
+
+
+
     // Apps
     val apps: StateFlow<List<InstalledApp>> = combine(
         appsRepository.mainUserApps,
@@ -213,6 +223,7 @@ class AppsListViewModel @Inject constructor(
             AppAction(
                 label = shortcut.label,
                 onClick = { clickedApp ->
+                    clearSearch()
                     startShortcut(context, clickedApp.packageName, shortcut.id)
                     _showBottomSheet.value = false
                     viewModelScope.launch {
